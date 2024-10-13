@@ -3,7 +3,7 @@
 A simple Wordle clone.
 
 Rules:
-- Green indicates a letter in the right position
+- Green indicates a letter in the right position.
 - Yellow indicates a letter in the incorrect position.
 - Grey indicates a letter that does not exist in the word.
 
