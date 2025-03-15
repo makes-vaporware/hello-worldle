@@ -1,6 +1,6 @@
 # Hello Wordle
 
-A simple Wordle clone.
+A simple Wordle clone. [Play it here.](https://makes-vaporware.github.io/hello-worldle/)
 
 Rules:
 - Green indicates a letter in the right position.
