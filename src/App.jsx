@@ -1,122 +1,22 @@
+import "./App.css";
 import { useState, useEffect } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import "./App.css";
 import { answers, guesses } from "./words/words.js";
 import { SnackbarProvider, closeSnackbar, enqueueSnackbar } from "notistack";
-
-const ColorStyle = Object.freeze({
-  GREEN: { backgroundColor: "#6aaa64", color: "#ffffff" },
-  YELLOW: { backgroundColor: "#c9b458", color: "#ffffff" },
-  GREY: { backgroundColor: "#787c7e", color: "#ffffff" },
-  DEFAULT_GRID: { backgroundColor: "#ffffff", color: "#000000" },
-  DEFAULT_KEYBOARD: { backgroundColor: "#d3d8da", color: "#000000" },
-});
-
-const COLOR_STYLE_ORDER = [
-  ColorStyle.GREEN,
-  ColorStyle.YELLOW,
-  ColorStyle.GREY,
-  ColorStyle.DEFAULT_GRID,
-  ColorStyle.DEFAULT_KEYBOARD,
-];
-
-const getMinColorStyle = (enum1, enum2) => {
-  return COLOR_STYLE_ORDER.indexOf(enum1) < COLOR_STYLE_ORDER.indexOf(enum2)
-    ? enum1
-    : enum2;
-};
-
-const BorderStyle = Object.freeze({
-  EMPTY: { border: "2px solid #dddddd" },
-  FILLED: { border: "2px solid black" },
-  LOCKED: { border: "2px solid transparent" },
-});
-
-const Keyboard = ({ alphabet }) => {
-  const topRow = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"];
-  const middleRow = ["A", "S", "D", "F", "G", "H", "J", "K", "L"];
-  const bottomRow = ["Z", "X", "C", "V", "B", "N", "M"];
-
-  const keyboardStyle = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "column",
-    gap: "5px",
-    width: "80%",
-    margin: "0 auto",
-  };
-  const rowStyle = {
-    display: "flex",
-    justifyContent: "center",
-    flexDirection: "row",
-    width: "100%",
-    gap: "5px",
-  };
-  const keyStyle = {
-    outline: "none",
-    fontWeight: "bold",
-    ...ColorStyle.DEFAULT_KEYBOARD,
-    flex: 1,
-    minWidth: "30px",
-    minHeight: "50px",
-  };
-
-  const renderKeyButton = (x) => {
-    return (
-      <Button
-        key={x}
-        sx={{
-          ...keyStyle,
-          ...alphabet.find((y) => y.letter === x).colorStyle,
-        }}
-        onClick={(e) => {
-          window.dispatchEvent(new KeyboardEvent("keydown", { key: x }));
-          e.target.blur();
-        }}
-      >
-        {x}
-      </Button>
-    );
-  };
-
-  return (
-    <Box sx={keyboardStyle}>
-      <Box sx={rowStyle}>{topRow.map((x) => renderKeyButton(x))}</Box>
-      <Box sx={rowStyle}>{middleRow.map((x) => renderKeyButton(x))}</Box>
-      <Box sx={rowStyle}>
-        <Button
-          key="Enter"
-          sx={{ ...keyStyle, minWidth: "60px", fontSize: "10px" }}
-          onClick={(e) => {
-            window.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "Enter" })
-            );
-            e.target.blur();
-          }}
-        >
-          ENTER
-        </Button>
-        {bottomRow.map((x) => renderKeyButton(x))}
-        <Button
-          key="Backspace"
-          sx={{ ...keyStyle, minWidth: "60px" }}
-          onClick={(e) => {
-            window.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "Backspace" })
-            );
-            e.target.blur();
-          }}
-        >
-          ⌫
-        </Button>
-      </Box>
-    </Box>
-  );
-};
+import { GameState } from "./constants/gameStates.js";
+import { ColorStyle } from "./constants/colorStyles.js";
+import { BorderStyle } from "./constants/borderStyles.js";
+import { getMinColorStyle } from "./utils/getMinColorStyle.js";
+import { Keyboard } from "./components/Keyboard.jsx";
+import { checkGuess } from "./utils/checkGuess.js";
+import { Grid } from "./components/Grid.jsx";
+import { SettingsModal } from "./components/SettingsModal.jsx";
+import { Header } from "./components/Header.jsx";
 
 const App = () => {
-  const [gameActive, setGameActive] = useState(true);
+  const [gameState, setGameState] = useState(GameState.ACTIVE);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [lightningRoundSelected, setLightningRoundSelected] = useState(false);
   const [currentRow, setCurrentRow] = useState(0);
   const [currentCol, setCurrentCol] = useState(0);
   const [grid, setGrid] = useState(
@@ -137,48 +37,11 @@ const App = () => {
   );
   const [answer, setAnswer] = useState(
     answers[Math.floor(Math.random() * answers.length)]
-    // "dress"
   );
-
-  const checkGuess = (guess, answer) => {
-    let expected = answer.split("").map((x) => {
-      return { letter: x, flagged: false };
-    });
-    let results = guess.split("").map((x) => {
-      return { letter: x, flagged: false, colorStyle: ColorStyle.GREY };
-    });
-
-    // first pass: flag exact matches
-    for (const i in results) {
-      if (results[i].letter === expected[i].letter) {
-        expected[i].flagged = true;
-        results[i].flagged = true;
-        results[i].colorStyle = ColorStyle.GREEN;
-      }
-    }
-
-    // second pass: compare unflagged guesses against unflagged answers
-    for (const i in results) {
-      for (const j in expected) {
-        if (
-          !results[i].flagged &&
-          !expected[j].flagged &&
-          results[i].letter === expected[j].letter
-        ) {
-          expected[j].flagged = true;
-          results[i].flagged = true;
-          results[i].colorStyle = ColorStyle.YELLOW;
-          break;
-        }
-      }
-    }
-
-    return results.map((x) => x.colorStyle);
-  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (!gameActive) return;
+      if (gameState !== GameState.ACTIVE) return;
 
       const key = e.key;
 
@@ -256,10 +119,10 @@ const App = () => {
             {
               persist: true,
               variant: "success",
-              SnackbarProps: {onClick: () => closeSnackbar()},
+              SnackbarProps: { onClick: () => closeSnackbar() },
             }
           );
-          setGameActive(false);
+          setGameState(GameState.INACTIVE);
         } else {
           setCurrentRow((prevRow) => prevRow + 1);
           setCurrentCol(0);
@@ -268,9 +131,9 @@ const App = () => {
             enqueueSnackbar(`Game Over! Word was ${answer.toUpperCase()}`, {
               persist: true,
               variant: "error",
-              SnackbarProps: {onClick: () => closeSnackbar()},
+              SnackbarProps: { onClick: () => closeSnackbar() },
             });
-            setGameActive(false);
+            setGameState(GameState.INACTIVE);
           }
         }
       }
@@ -281,7 +144,86 @@ const App = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [currentRow, currentCol, grid, gameActive]);
+  }, [currentRow, currentCol, grid, gameState, answer]);
+
+  const restartGame = async () => {
+    setCurrentRow(0);
+    setCurrentCol(0);
+    setGrid(
+      Array.from({ length: 6 }).map((_) =>
+        Array.from({ length: 5 }).map((_) => {
+          return {
+            letter: "",
+            colorStyle: ColorStyle.DEFAULT_GRID,
+            borderStyle: BorderStyle.EMPTY,
+          };
+        })
+      )
+    );
+    setAlphabet(
+      [..."QWERTYUIOPASDFGHJKLZXCVBNM"].map((x) => {
+        return { letter: x, colorStyle: ColorStyle.DEFAULT_KEYBOARD };
+      })
+    );
+    setAnswer(answers[Math.floor(Math.random() * answers.length)]);
+    closeSnackbar();
+    setGameState(GameState.PENDING_MODIFIERS);
+  };
+
+  const lightningRound = async () => {
+    // lightning round
+    // 4 words already done.
+    console.log("Lightning Round!");
+    const guesses = [];
+    while (guesses.length < 4) {
+      let guess = answers[Math.floor(Math.random() * answers.length)];
+      while (guess === answer || guesses.includes(guess)) {
+        guess = answers[Math.floor(Math.random() * answers.length)];
+      }
+      guesses.push(guess);
+    }
+
+    for (let j = 0; j < 4; j++) {
+      const matches = checkGuess(guesses[j], answer);
+
+      setGrid((prevGrid) => {
+        let newGrid = prevGrid.map((row) => [...row]);
+        for (const i in matches) {
+          newGrid[j][i].letter = guesses[j].at(i).toUpperCase();
+          newGrid[j][i].colorStyle = matches[i];
+          newGrid[j][i].borderStyle = BorderStyle.LOCKED;
+        }
+        return newGrid;
+      });
+
+      setAlphabet((prevAlphabet) => {
+        let newAlphabet = prevAlphabet;
+        for (const i in matches) {
+          let letter = newAlphabet.find(
+            (x) => x.letter === guesses[j][i].toUpperCase()
+          );
+          letter.colorStyle = getMinColorStyle(letter.colorStyle, matches[i]);
+        }
+        return newAlphabet;
+      });
+
+      setCurrentRow((prevRow) => prevRow + 1);
+    }
+  };
+
+  useEffect(() => {
+    if (gameState === GameState.PENDING_MODIFIERS) {
+      // if lightning round check
+      if (lightningRoundSelected) {
+        lightningRound();
+      }
+      setGameState(GameState.ACTIVE);
+    }
+  }, [gameState]);
+
+  const handleCloseSettingsModal = () => {
+    setSettingsModalOpen(false);
+  };
 
   return (
     <Box>
@@ -290,6 +232,7 @@ const App = () => {
         autoHideDuration={1500}
         maxSnack={1}
       />
+      <Header settingsOnClick={() => setSettingsModalOpen(true)} />
       <Box
         sx={{
           display: "flex",
@@ -302,10 +245,18 @@ const App = () => {
         }}
       >
         <Typography sx={{ fontSize: "26px", fontWeight: "bold" }}>
-          HELLO WORLDLE
+          HELLO WORLDLE!
         </Typography>
-        {!gameActive && (
-          <Button
+        <SettingsModal
+          open={settingsModalOpen}
+          onClose={handleCloseSettingsModal}
+          lightningRoundSelected={lightningRoundSelected}
+          handleLightningRoundChange={(e) => {
+            setLightningRoundSelected(e.target.checked);
+          }}
+        />
+        {
+          /*!gameActive &&*/ <Button
             sx={{
               display: "inline-block",
               float: "right",
@@ -316,63 +267,15 @@ const App = () => {
               fontSize: "10px",
             }}
             onClick={() => {
-              setCurrentRow(0);
-              setCurrentCol(0);
-              setGrid(
-                Array.from({ length: 6 }).map((_) =>
-                  Array.from({ length: 5 }).map((_) => {
-                    return {
-                      letter: "",
-                      colorStyle: ColorStyle.DEFAULT_GRID,
-                      borderStyle: BorderStyle.EMPTY,
-                    };
-                  })
-                )
-              );
-              setAlphabet(
-                [..."QWERTYUIOPASDFGHJKLZXCVBNM"].map((x) => {
-                  return { letter: x, colorStyle: ColorStyle.DEFAULT_KEYBOARD };
-                })
-              );
-              setAnswer(answers[Math.floor(Math.random() * answers.length)]);
-              closeSnackbar();
-              setGameActive(true);
+              restartGame();
             }}
           >
             PLAY AGAIN
           </Button>
-        )}
+        }
       </Box>
-      <Box
-        sx={{
-          display: "inline-grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gridGap: 10,
-        }}
-      >
-        {grid.flat().map((x, i) => (
-          <Box
-            key={i}
-            sx={{
-              height: 50,
-              width: 50,
-              ...x.colorStyle,
-              ...x.borderStyle,
-              alignContent: "center",
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: "30px",
-                fontWeight: "bold",
-              }}
-            >
-              {x.letter}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-      <p> </p>
+      <Grid grid={grid} />
+      <p /> {/* lol */}
       <Keyboard alphabet={alphabet} />
     </Box>
   );
