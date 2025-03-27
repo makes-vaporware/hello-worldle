@@ -6,12 +6,16 @@ const Header = ({ settingsOnClick }) => {
     <Box
       sx={{
         display: "flex",
-        borderBottom: "1px solid #aaa",
-        margin: "10px",
+        // borderBottom: "1px solid #aaa",
+        margin: "15px",
       }}
     >
       <Box sx={{ flex: 1 }}></Box>
-      <IconButton color="inherit" onClick={settingsOnClick}>
+      <IconButton
+        // sx={{ borderBottom: "1px solid #aaa" }}
+        color="inherit"
+        onClick={settingsOnClick}
+      >
         <SettingsIcon />
       </IconButton>
     </Box>
