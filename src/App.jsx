@@ -266,8 +266,9 @@ const App = () => {
               height: "30px",
               fontSize: "10px",
             }}
-            onClick={() => {
+            onClick={(e) => {
               restartGame();
+              e.target.blur();
             }}
           >
             PLAY AGAIN
